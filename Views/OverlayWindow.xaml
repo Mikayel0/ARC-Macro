@@ -1,0 +1,15 @@
+<Window x:Class="Macro.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Overlay" 
+        WindowStyle="None" 
+        AllowsTransparency="True" 
+        Background="Transparent" 
+        Topmost="True" 
+        ShowInTaskbar="False" 
+        Loaded="Window_Loaded">
+    <Grid>
+        <Border x:Name="MainBorder" BorderBrush="#9D00FF" BorderThickness="1" Opacity="0.8" Visibility="Hidden" />
+        <Canvas x:Name="MacroCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+    </Grid>
+</Window>
