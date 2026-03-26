@@ -35,6 +35,5 @@ public class MacroAction
 
 public class MacroSequence
 {
-    public string Name { get; set; } = "Inventory Recycle Sequence";
     public MacroAction[] Actions { get; set; } = Array.Empty<MacroAction>();
 }

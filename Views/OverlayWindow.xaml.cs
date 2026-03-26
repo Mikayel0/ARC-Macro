@@ -119,7 +119,7 @@ public partial class OverlayWindow : Window
         public string Label { get; set; } = "";
     }
 
-    public void DrawMacroVisualization(MacroSequence sequence)
+    public void DrawMacroVisualization(MacroSequence sequence, bool showKeyEvents = false)
     {
         MacroCanvas.Children.Clear();
         
@@ -143,17 +143,17 @@ public partial class OverlayWindow : Window
             string labelStr = "";
             bool skipNext = false;
 
-            if (a.Type == ActionType.MouseLeftDown && i < sequence.Actions.Length - 1 && sequence.Actions[i+1].Type == ActionType.MouseLeftUp)
+            if (!showKeyEvents && a.Type == ActionType.MouseLeftDown && i < sequence.Actions.Length - 1 && sequence.Actions[i+1].Type == ActionType.MouseLeftUp)
             {
                 labelStr = "[LMC]";
                 skipNext = true;
             }
-            else if (a.Type == ActionType.MouseRightDown && i < sequence.Actions.Length - 1 && sequence.Actions[i+1].Type == ActionType.MouseRightUp)
+            else if (!showKeyEvents && a.Type == ActionType.MouseRightDown && i < sequence.Actions.Length - 1 && sequence.Actions[i+1].Type == ActionType.MouseRightUp)
             {
                 labelStr = "[RMC]";
                 skipNext = true;
             }
-            else if (a.Type == ActionType.KeyDown && i < sequence.Actions.Length - 1 && sequence.Actions[i+1].Type == ActionType.KeyUp && sequence.Actions[i+1].KeyCode == a.KeyCode)
+            else if (!showKeyEvents && a.Type == ActionType.KeyDown && i < sequence.Actions.Length - 1 && sequence.Actions[i+1].Type == ActionType.KeyUp && sequence.Actions[i+1].KeyCode == a.KeyCode)
             {
                 var keyName = System.Windows.Input.KeyInterop.KeyFromVirtualKey(a.KeyCode).ToString();
                 if (keyName.StartsWith("Left")) keyName = keyName.Substring(4);

@@ -50,9 +50,13 @@ public partial class MainWindow : Window
         LoopMacroCheck.IsChecked = _config.LoopMacro;
         LoopDelayBox.Text = _config.LoopDelayMs;
         SkipFirstDelayCheck.IsChecked = _config.SkipFirstDelay;
-        SkipLastDelayCheck.IsChecked = _config.SkipLastDelay;
         MuteAudioCheck.IsChecked = _config.MuteGameAudio;
         OverlayBorderCheck.IsChecked = _config.EnableOverlayBorder;
+        OverlayKeyEventsCheck.IsChecked = _config.EnableOverlayKeyEvents;
+        ManualDelayCheck.IsChecked = _config.ManualDelayEnabled;
+        ManualDelayBox.Text = _config.ManualDelayMs;
+        DragDurationBox.Text = _config.DragDurationMs;
+        MouseDrag.IsChecked = _config.EnableMouseDrag;
     }
 
     private void SaveConfig_Changed(object sender, RoutedEventArgs e)
@@ -61,9 +65,11 @@ public partial class MainWindow : Window
 
         _config.LoopMacro = LoopMacroCheck.IsChecked == true;
         _config.SkipFirstDelay = SkipFirstDelayCheck.IsChecked == true;
-        _config.SkipLastDelay = SkipLastDelayCheck.IsChecked == true;
         _config.MuteGameAudio = MuteAudioCheck.IsChecked == true;
         _config.EnableOverlayBorder = OverlayBorderCheck.IsChecked == true;
+        _config.EnableOverlayKeyEvents = OverlayKeyEventsCheck.IsChecked == true;
+        _config.ManualDelayEnabled = ManualDelayCheck.IsChecked == true;
+        _config.EnableMouseDrag = MouseDrag.IsChecked == true;
         
         ConfigManager.Save(_config);
 
@@ -71,12 +77,19 @@ public partial class MainWindow : Window
         {
             _overlayWindow.SetBorderVisibility(_config.EnableOverlayBorder);
         }
+
+        if (sender == OverlayKeyEventsCheck && _overlayWindow != null && _loadedSequence != null)
+        {
+            _overlayWindow.DrawMacroVisualization(_loadedSequence, _config.EnableOverlayKeyEvents);
+        }
     }
 
     private void SaveConfig_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
-        if (LoopDelayBox == null || _config == null) return;
+        if (LoopDelayBox == null || ManualDelayBox == null || DragDurationBox == null || _config == null) return;
         _config.LoopDelayMs = LoopDelayBox.Text;
+        _config.ManualDelayMs = ManualDelayBox.Text;
+        _config.DragDurationMs = DragDurationBox.Text;
         ConfigManager.Save(_config);
     }
 
@@ -131,12 +144,11 @@ public partial class MainWindow : Window
             // If a macro is already loaded in memory, draw it immediately when overlay opens
             if (_loadedSequence != null)
             {
-                _overlayWindow.DrawMacroVisualization(_loadedSequence);
+                _overlayWindow.DrawMacroVisualization(_loadedSequence, _config.EnableOverlayKeyEvents);
             }
             
             ToggleOverlayBtn.Content = "Stop Overlay";
-            ToggleOverlayBtn.Foreground = Brushes.Red;
-            UpdateStatus("Overlay launched and attempting to snap to window.");
+            // UpdateStatus("Overlay launched and attempting to snap to window.");
         }
         else
         {
@@ -145,7 +157,7 @@ public partial class MainWindow : Window
             
             ToggleOverlayBtn.Content = "Start Overlay";
             ToggleOverlayBtn.Foreground = Brushes.White;
-            UpdateStatus("Overlay stopped.");
+            // UpdateStatus("Overlay stopped.");
         }
     }
 
@@ -172,7 +184,7 @@ public partial class MainWindow : Window
             SaveMacroBtn.IsEnabled = false;
             ToggleRecordBtn.Content = "Stop Record";
             ToggleRecordBtn.Foreground = Brushes.Red;
-            UpdateStatus("Recording inputs... (Press Record Bind or Stop when finished)");
+            // UpdateStatus("Recording inputs... (Press Record Bind or Stop when finished)");
         }
         else
         {
@@ -180,7 +192,7 @@ public partial class MainWindow : Window
             SaveMacroBtn.IsEnabled = true;
             ToggleRecordBtn.Content = "Toggle Record";
             ToggleRecordBtn.Foreground = Brushes.White;
-            UpdateStatus("Recording stopped. You can now save the macro.");
+            // UpdateStatus("Recording stopped. You can now save the macro.");
         }
     }
 
@@ -197,7 +209,7 @@ public partial class MainWindow : Window
             _recorder.SaveToJson(path);
             
             RefreshMacrosList();
-            UpdateStatus($"Macro saved successfully to:\n{fileName}");
+            // UpdateStatus($"Macro saved successfully to:\n{fileName}");
         }
         catch (Exception ex)
         {
@@ -216,7 +228,7 @@ public partial class MainWindow : Window
         {
             // Cancel current playback
             _playCts.Cancel();
-            UpdateStatus("Cancelling playback...");
+            // UpdateStatus("Cancelling playback...");
             TogglePlayBtn.Content = "Play/Stop Macro";
             TogglePlayBtn.Foreground = Brushes.White;
             return;
@@ -253,7 +265,7 @@ public partial class MainWindow : Window
 
         if (shouldMute) AudioManager.SetProcessMute(targetPid, "PioneerGame.exe", true);
 
-        UpdateStatus($"Playing macro (Speed: {speed}X)...");
+        // UpdateStatus($"Playing macro (Speed: {speed}X)...");
         SaveMacroBtn.IsEnabled = false;
         TogglePlayBtn.Content = "Stop Playback";
         TogglePlayBtn.Foreground = Brushes.Red;
@@ -262,7 +274,10 @@ public partial class MainWindow : Window
         int sleepMs = int.TryParse(LoopDelayBox.Text, out int s) ? s : 1000;
 
         bool skipFirstDelay = SkipFirstDelayCheck.IsChecked == true;
-        bool skipLastDelay = SkipLastDelayCheck.IsChecked == true;
+        bool manualDelayEnabled = ManualDelayCheck.IsChecked == true;
+        bool enableMouseDrag = MouseDrag.IsChecked == true;
+        int.TryParse(ManualDelayBox.Text, out int manualDelayMs);
+        int.TryParse(DragDurationBox.Text, out int dragDurationMs);
 
         try
         {
@@ -271,11 +286,11 @@ public partial class MainWindow : Window
                 do
                 {
                     if (token.IsCancellationRequested) break;
-                    await MacroRecorder.PlayMacro(_loadedSequence, hwnd, speed, skipFirstDelay, skipLastDelay, token);
+                    await MacroRecorder.PlayMacro(_loadedSequence, hwnd, speed, skipFirstDelay, manualDelayEnabled, manualDelayMs, dragDurationMs, enableMouseDrag, token);
 
                     if (loop && !token.IsCancellationRequested)
                     {
-                        Dispatcher.Invoke(() => UpdateStatus($"Sleeping {sleepMs}ms before next loop cycle..."));
+                        // Dispatcher.Invoke(() => UpdateStatus($"Sleeping {sleepMs}ms before next loop cycle..."));
                         await System.Threading.Tasks.Task.Delay(sleepMs, token);
                     }
 
@@ -288,7 +303,7 @@ public partial class MainWindow : Window
         _playCts.Dispose();
         _playCts = null;
 
-        UpdateStatus("Playback finished or cancelled.");
+        // UpdateStatus("Playback finished or cancelled.");
         SaveMacroBtn.IsEnabled = true;
         TogglePlayBtn.Content = "Play/Stop Macro";
         TogglePlayBtn.Foreground = Brushes.White;
@@ -319,8 +334,8 @@ public partial class MainWindow : Window
     {
         if (_overlayWindow != null && _overlayWindow.IsVisible)
         {
-            _overlayWindow.DrawMacroVisualization(new MacroSequence { Actions = new MacroAction[0] });
-            UpdateStatus("Overlay visualization cleared.");
+            _overlayWindow.DrawMacroVisualization(new MacroSequence { Actions = new MacroAction[0] }, _config.EnableOverlayKeyEvents);
+            // UpdateStatus("Overlay visualization cleared.");
         }
         MacroListBox.SelectedItem = null;
         _loadedSequence = null;
@@ -348,7 +363,7 @@ public partial class MainWindow : Window
                 
                 RefreshMacrosList();
                 ClearOverlayBtn_Click(sender, e);
-                UpdateStatus($"Deleted macro: {fileName}");
+                // UpdateStatus($"Deleted macro: {fileName}");
             }
             catch (Exception ex)
             {
@@ -371,10 +386,10 @@ public partial class MainWindow : Window
             
             if (_overlayWindow != null && _overlayWindow.IsVisible)
             {
-                _overlayWindow.DrawMacroVisualization(_loadedSequence);
+                _overlayWindow.DrawMacroVisualization(_loadedSequence, _config.EnableOverlayKeyEvents);
             }
             
-            UpdateStatus($"Loaded: {fileName} ({_loadedSequence.Actions.Length} actions).");
+            // UpdateStatus($"Loaded: {fileName} ({_loadedSequence.Actions.Length} actions).");
         }
         catch (Exception ex)
         {
@@ -432,7 +447,7 @@ public partial class MainWindow : Window
 
     private void UpdateStatus(string message)
     {
-        StatusText.Text = $"Status: {message}";
+        // StatusText.Text = $"Status: {message}";
     }
 
     private IntPtr GetHwndFromProcessName(string processName)

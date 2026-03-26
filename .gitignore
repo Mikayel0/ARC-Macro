@@ -1,0 +1,32 @@
+# Visual Studio
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docuser
+
+# Visual Studio 2015/2017 cache/options directory
+.vs/
+
+# Build results
+[Tt]est[Rr]esults/
+
+# NuGet Packages
+*.nupkg
+# The packages folder can be ignored because of Package Restore
+**/packages/*
+# except build/, which is used as an MSBuild target.
+!**/packages/build/
+# Uncomment if using NuGet 4.x+ with PackageReference:
+# !**/packages/
+
+# Others
+.DS_Store
+*.swp
+*.lock

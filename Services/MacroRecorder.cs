@@ -194,11 +194,13 @@ public class MacroRecorder : IDisposable
     /// <summary>
     /// Replays a sequence of actions by converting percentages back to absolute pixels and sending hardware inputs.
     /// </summary>
-    public static async System.Threading.Tasks.Task PlayMacro(MacroSequence sequence, IntPtr targetHwnd, double speedModifier = 1.0, bool skipFirstDelay = false, bool skipLastDelay = false, System.Threading.CancellationToken token = default)
+    public static async System.Threading.Tasks.Task PlayMacro(MacroSequence sequence, IntPtr targetHwnd, double speedModifier = 1.0, bool skipFirstDelay = false, bool manualDelayEnabled = false, int manualDelayMs = 0, int dragDurationMs = 100, bool enableMouseDrag = false, System.Threading.CancellationToken token = default)
     {
         if (sequence == null || sequence.Actions.Length == 0 || targetHwnd == IntPtr.Zero) return;
 
         bool isFirst = true;
+        int lastAbsX = 0;
+        int lastAbsY = 0;
 
         for (int i = 0; i < sequence.Actions.Length; i++)
         {
@@ -209,11 +211,15 @@ public class MacroRecorder : IDisposable
             // Explicitly yield back to the OS message pump to ensure hotkeys are intercepted cleanly
             await System.Threading.Tasks.Task.Delay(1, token);
 
-            // Wait for the recorded delay
-            double ms = action.DelayMs;
-            if (speedModifier > 0) ms /= speedModifier;
+            // Wait for the delay
+            double ms = manualDelayEnabled ? manualDelayMs : action.DelayMs;
+            
+            if (!manualDelayEnabled && speedModifier > 0) 
+            {
+                ms /= speedModifier;
+            }
+            
             if (isFirst && skipFirstDelay) ms = 0;
-            if (skipLastDelay && i == sequence.Actions.Length - 1) ms = 0;
             isFirst = false;
 
             int adjustedDelay = (int)ms;
@@ -262,7 +268,80 @@ public class MacroRecorder : IDisposable
                     break;
             }
 
-            NativeMethods.SendInput(1, inputs, Marshal.SizeOf(typeof(NativeMethods.INPUT)));
+            if (enableMouseDrag)
+            {
+                if (action.Type == ActionType.MouseLeftDown)
+                {
+                    // Send Down, then a tiny Move, to force the game to register "dragging"
+                    NativeMethods.INPUT[] microInputs = new NativeMethods.INPUT[3];
+                    microInputs[0] = inputs[0];
+
+                    int wiggleX = NativeMethods.GetSystemMetrics(NativeMethods.SM_CXSCREEN) / 100;
+                    int wiggleY = NativeMethods.GetSystemMetrics(NativeMethods.SM_CYSCREEN) / 100;
+                    if (wiggleX == 0) wiggleX = 1;
+                    if (wiggleY == 0) wiggleY = 1;
+
+                    microInputs[1] = inputs[0];
+                    microInputs[1].U.mi.dx += wiggleX;
+                    microInputs[1].U.mi.dy += wiggleY;
+                    microInputs[1].U.mi.dwFlags = NativeMethods.MOUSEEVENTF_ABSOLUTE | NativeMethods.MOUSEEVENTF_MOVE;
+
+                    microInputs[2] = inputs[0];
+                    microInputs[2].U.mi.dwFlags = NativeMethods.MOUSEEVENTF_ABSOLUTE | NativeMethods.MOUSEEVENTF_MOVE;
+                    NativeMethods.SendInput(3, microInputs, Marshal.SizeOf(typeof(NativeMethods.INPUT)));
+                }
+                else if (action.Type == ActionType.MouseLeftUp)
+                {
+                    // Smoothly drag from LAST known position to CURRENT Up position.
+                    // Use Stopwatch-based timing instead of Task.Delay so that short durations
+                    // (e.g. 25-50ms) are accurate — Task.Delay has ~15ms OS timer resolution.
+                    int steps = 20;
+                    double totalDurationMs = dragDurationMs;
+                    if (speedModifier > 0) totalDurationMs /= speedModifier;
+
+                    double msPerStep = totalDurationMs / steps;
+
+                    var dragSw = Stopwatch.StartNew();
+                    for (int s = 1; s < steps; s++)
+                    {
+                        if (token.IsCancellationRequested) break;
+
+                        double t = (double)s / steps;
+                        int interX = (int)(lastAbsX + (absX - lastAbsX) * t);
+                        int interY = (int)(lastAbsY + (absY - lastAbsY) * t);
+
+                        NativeMethods.INPUT[] moveInput = new NativeMethods.INPUT[1];
+                        moveInput[0].type = NativeMethods.INPUT_MOUSE;
+                        moveInput[0].U.mi.dx = (interX * 65535) / NativeMethods.GetSystemMetrics(NativeMethods.SM_CXSCREEN);
+                        moveInput[0].U.mi.dy = (interY * 65535) / NativeMethods.GetSystemMetrics(NativeMethods.SM_CYSCREEN);
+                        moveInput[0].U.mi.dwFlags = NativeMethods.MOUSEEVENTF_ABSOLUTE | NativeMethods.MOUSEEVENTF_MOVE;
+
+                        NativeMethods.SendInput(1, moveInput, Marshal.SizeOf(typeof(NativeMethods.INPUT)));
+
+                        // Spin-wait until it's time for the next step (accurate for short durations)
+                        double targetMs = s * msPerStep;
+                        while (dragSw.Elapsed.TotalMilliseconds < targetMs)
+                        {
+                            if (token.IsCancellationRequested) break;
+                            // Yield briefly if we have more than 1ms to wait, else spin
+                            if (targetMs - dragSw.Elapsed.TotalMilliseconds > 1.5)
+                                await System.Threading.Tasks.Task.Delay(1, token);
+                        }
+                    }
+                    NativeMethods.SendInput(1, inputs, Marshal.SizeOf(typeof(NativeMethods.INPUT)));
+                }
+                else
+                {
+                    NativeMethods.SendInput(1, inputs, Marshal.SizeOf(typeof(NativeMethods.INPUT)));
+                }
+            }
+            else
+            {
+                NativeMethods.SendInput(1, inputs, Marshal.SizeOf(typeof(NativeMethods.INPUT)));
+            }
+
+            lastAbsX = absX;
+            lastAbsY = absY;
         }
     }
 

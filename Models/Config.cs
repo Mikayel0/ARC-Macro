@@ -20,9 +20,13 @@ public class AppConfig
     public bool LoopMacro { get; set; } = false;
     public string LoopDelayMs { get; set; } = "1000";
     public bool SkipFirstDelay { get; set; } = false;
-    public bool SkipLastDelay { get; set; } = false;
     public bool MuteGameAudio { get; set; } = false;
     public bool EnableOverlayBorder { get; set; } = false;
+    public bool EnableOverlayKeyEvents { get; set; } = false;
+    public bool ManualDelayEnabled { get; set; } = false;
+    public string ManualDelayMs { get; set; } = "50";
+    public string DragDurationMs { get; set; } = "100";
+    public bool EnableMouseDrag { get; set; } = false;
 }
 
 public static class ConfigManager
