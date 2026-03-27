@@ -50,7 +50,7 @@
 
             <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                 <TextBlock Text="ARC Macro" FontSize="20" FontWeight="Bold" />
-                <TextBlock Text="v1.1" FontSize="12" FontWeight="Bold" Foreground="#A0A0A0" Margin="4,6,0,0" />
+                <TextBlock Text="v1.2" FontSize="12" FontWeight="Bold" Foreground="#A0A0A0" Margin="4,6,0,0" />
             </StackPanel>
 
             <StackPanel Grid.Row="1" Orientation="Vertical" Margin="0,0,15,0">
@@ -78,7 +78,7 @@
                 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                     <TextBlock Text="Speed:" VerticalAlignment="Center" Width="45" Foreground="#A0A0A0"/>
-                    <Slider x:Name="SpeedSlider" Minimum="1" Maximum="10" Value="1" Width="130" Margin="0,0,5,0" VerticalAlignment="Center" IsSnapToTickEnabled="True" TickFrequency="1" AutoToolTipPlacement="TopLeft"/>
+                    <Slider x:Name="SpeedSlider" Minimum="1" Maximum="10" Value="1" Width="130" Margin="0,0,5,0" VerticalAlignment="Center" IsSnapToTickEnabled="True" TickFrequency="1" AutoToolTipPlacement="TopLeft" ValueChanged="SaveConfig_Changed"/>
                     <TextBlock Text="{Binding Value, ElementName=SpeedSlider}" VerticalAlignment="Center" Width="20" Foreground="White" FontWeight="Bold"/>
                 </StackPanel>
 

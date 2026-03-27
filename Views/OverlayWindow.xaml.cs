@@ -102,11 +102,8 @@ public partial class OverlayWindow : Window
         }
         else
         {
-            // If the game window is closed or minimized, hide the overlay
-            if (this.Visibility != Visibility.Hidden)
-            {
-                this.Visibility = Visibility.Hidden;
-            }
+            // If the game window is closed or the process is gone, stop the overlay entirely
+            this.Close();
         }
     }
 
@@ -242,12 +239,16 @@ public partial class OverlayWindow : Window
 
     private IntPtr GetHwndFromProcessName(string processName)
     {
-        string nameWithoutExt = processName.Replace(".exe", "", StringComparison.OrdinalIgnoreCase);
-        var processes = System.Diagnostics.Process.GetProcessesByName(nameWithoutExt);
-        if (processes.Length > 0)
+        try
         {
-            return processes[0].MainWindowHandle;
+            string nameWithoutExt = processName.Replace(".exe", "", StringComparison.OrdinalIgnoreCase);
+            var processes = System.Diagnostics.Process.GetProcessesByName(nameWithoutExt);
+            if (processes.Length > 0 && !processes[0].HasExited)
+            {
+                return processes[0].MainWindowHandle;
+            }
         }
+        catch { }
         return IntPtr.Zero;
     }
 }

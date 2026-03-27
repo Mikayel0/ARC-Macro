@@ -19,7 +19,7 @@ public partial class MainWindow : Window
 
     private bool _isRebindingRecord = false;
     private bool _isRebindingPlay = false;
-
+    private bool _isInitialized = false;
     private System.Threading.CancellationTokenSource? _playCts;
 
     private readonly string _macrosFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Macros");
@@ -46,7 +46,8 @@ public partial class MainWindow : Window
 
     private void LoadUIConfig()
     {
-        // Suppress events during load
+        _isInitialized = false;
+        
         LoopMacroCheck.IsChecked = _config.LoopMacro;
         LoopDelayBox.Text = _config.LoopDelayMs;
         SkipFirstDelayCheck.IsChecked = _config.SkipFirstDelay;
@@ -57,11 +58,14 @@ public partial class MainWindow : Window
         ManualDelayBox.Text = _config.ManualDelayMs;
         DragDurationBox.Text = _config.DragDurationMs;
         MouseDrag.IsChecked = _config.EnableMouseDrag;
+        SpeedSlider.Value = _config.Speed;
+
+        _isInitialized = true;
     }
 
     private void SaveConfig_Changed(object sender, RoutedEventArgs e)
     {
-        if (LoopMacroCheck == null || _config == null) return; // UI not fully initialized
+        if (!_isInitialized || _config == null) return;
 
         _config.LoopMacro = LoopMacroCheck.IsChecked == true;
         _config.SkipFirstDelay = SkipFirstDelayCheck.IsChecked == true;
@@ -70,6 +74,7 @@ public partial class MainWindow : Window
         _config.EnableOverlayKeyEvents = OverlayKeyEventsCheck.IsChecked == true;
         _config.ManualDelayEnabled = ManualDelayCheck.IsChecked == true;
         _config.EnableMouseDrag = MouseDrag.IsChecked == true;
+        _config.Speed = SpeedSlider.Value;
         
         ConfigManager.Save(_config);
 
@@ -86,7 +91,7 @@ public partial class MainWindow : Window
 
     private void SaveConfig_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
-        if (LoopDelayBox == null || ManualDelayBox == null || DragDurationBox == null || _config == null) return;
+        if (!_isInitialized || _config == null) return;
         _config.LoopDelayMs = LoopDelayBox.Text;
         _config.ManualDelayMs = ManualDelayBox.Text;
         _config.DragDurationMs = DragDurationBox.Text;
@@ -137,6 +142,13 @@ public partial class MainWindow : Window
         if (_overlayWindow == null)
         {
             _overlayWindow = new OverlayWindow();
+            _overlayWindow.Closed += (s, ev) => 
+            {
+                _overlayWindow = null;
+                ToggleOverlayBtn.Content = "Start Overlay";
+                ToggleOverlayBtn.Foreground = Brushes.White;
+            };
+
             _overlayWindow.SetTargetWindow("PioneerGame");
             _overlayWindow.Show();
             _overlayWindow.SetBorderVisibility(_config.EnableOverlayBorder);
@@ -452,12 +464,16 @@ public partial class MainWindow : Window
 
     private IntPtr GetHwndFromProcessName(string processName)
     {
-        string nameWithoutExt = processName.Replace(".exe", "", StringComparison.OrdinalIgnoreCase);
-        var processes = System.Diagnostics.Process.GetProcessesByName(nameWithoutExt);
-        if (processes.Length > 0)
+        try
         {
-            return processes[0].MainWindowHandle;
+            string nameWithoutExt = processName.Replace(".exe", "", StringComparison.OrdinalIgnoreCase);
+            var processes = System.Diagnostics.Process.GetProcessesByName(nameWithoutExt);
+            if (processes.Length > 0 && !processes[0].HasExited)
+            {
+                return processes[0].MainWindowHandle;
+            }
         }
+        catch { }
         return IntPtr.Zero;
     }
 

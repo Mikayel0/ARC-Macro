@@ -27,6 +27,7 @@ public class AppConfig
     public string ManualDelayMs { get; set; } = "50";
     public string DragDurationMs { get; set; } = "100";
     public bool EnableMouseDrag { get; set; } = false;
+    public double Speed { get; set; } = 1.0;
 }
 
 public static class ConfigManager
